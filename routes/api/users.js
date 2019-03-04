@@ -2,8 +2,10 @@ const express = require("express");
 const router = express.Router();
 const gravatar = require('gravatar');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const User = require('../../models/User');
+const keys = require('../../config/keys');
 
 // @route  GET /api/users/test
 // @desc   Tests users route 
@@ -46,6 +48,45 @@ router.post('/register', (req, res) => {
       });
     }
   });
+});
+
+// @route  GET /api/users/login
+// @desc   Login User / Returning JWT Token
+// @access Public
+router.post('/login', (req, res) => {
+  const { email, password } = req.body;
+
+  // Find user by email
+  User.findOne({ email })
+    .then(user => {
+      // Check for user
+      if (!user) {
+        return res.status(404).json({ email: "There is no user with this email" });
+      }
+
+      // Check password if user is found
+      bcrypt.compare(password, user.password)
+        .then(isMatch => {
+          if (isMatch) {
+            // User matched
+            const payload = { id: user.id, name: user.name, avatar: user.avatar } // Create JWT payload
+
+            // Sign token
+            jwt.sign(
+              payload,
+              keys.secretOrKey,
+              { expiresIn: 3600 },
+              (err, token) => {
+                res.json({
+                  success: true,
+                  token: `Bearer ${token}`
+                });
+              });
+          } else {
+            res.status(400).json({ password: 'Password incorrect - please try again' });
+          }
+        })
+    });
 });
 
 module.exports = router;
