@@ -55,7 +55,7 @@ router.post('/register', (req, res) => {
 
       bcrypt.genSalt(10, (err, salt) => {
         bcrypt.hash(newUser.password, salt, (err, hash) => {
-          if (err) console.log(err);
+          if (err) throw err;
           newUser.password = hash;
           newUser.save()
             .then(user => res.json(user))
@@ -71,12 +71,12 @@ router.post('/register', (req, res) => {
 // @access Public
 router.post('/login', (req, res) => {
   const { errors, isValid } = validateLoginInput(req.body);
+  const { email, password } = req.body;
 
   if (!isValid) {
     return res.status(400).json(errors);
   }
 
-  const { email, password } = req.body;
 
   // Find user by email
   User.findOne({ email }).then(user => {
