@@ -10,6 +10,7 @@ const Profile = require("../../models/Profile");
 
 // Validation
 const validatePostInput = require("../../validation/post");
+const validateCommentInput = require("../../validation/comment");
 
 // @route  GET /api/posts/test
 // @desc   Test posts route
@@ -90,7 +91,7 @@ router.delete(
 );
 
 // @route  POST /api/posts/:id/likes
-// @desc   Create post
+// @desc   Like a post
 // @access Private
 router.post(
   "/:id/likes",
@@ -117,7 +118,7 @@ router.post(
 );
 
 // @route  DELETE /api/posts/:id/likes
-// @desc   Create post
+// @desc   Unlike a post
 // @access Private
 router.delete(
   "/:id/likes",
@@ -145,6 +146,73 @@ router.delete(
         })
         .catch(() => res.status(404).json({ postNotFound: "No post found" }));
     });
+  }
+);
+
+// @route  POST /api/posts/:id/comments
+// @desc   Create comment on post
+// @access Private
+router.post(
+  "/:id/comments",
+  passport.authenticate("jwt", { session: false }),
+  (req, res) => {
+    const { isValid, errors } = validateCommentInput(req.body);
+
+    // Check Validation
+    if (!isValid) {
+      return res.status(400).json(errors);
+    }
+
+    Post.findById(req.params.id)
+      .then(post => {
+        const newComment = {
+          user: req.user.id,
+          text: req.body.text,
+          name: req.user.name,
+          avatar: req.user.avatar
+        };
+
+        // Add to comments array
+        post.comments.unshift(newComment);
+
+        // Save
+        post.save().then(post => res.json(post));
+      })
+      .catch(() => res.status(404).json({ postNotFound: "No post found" }));
+  }
+);
+
+// @route  DELETE /api/posts/:id/comments/:comment_id
+// @desc   Remove comment on post
+// @access Private
+router.delete(
+  "/:id/comments/:comment_id",
+  passport.authenticate("jwt", { session: false }),
+  (req, res) => {
+    Post.findById(req.params.id)
+      .then(post => {
+        // Check to see if comment exists
+        if (
+          !post.comments.find(
+            comment => comment._id.toString() === req.params.comment_id
+          )
+        ) {
+          return res
+            .status(404)
+            .json({ commentDoesntExist: "Comment does not exist" });
+        }
+        // Get remove index
+        const removeIndex = post.comments
+          .map(comment => comment._id.toString())
+          .indexOf(req.params.comment_id);
+
+        // Splice out of array
+        post.comments.splice(removeIndex, 1);
+
+        // Save
+        post.save().then(post => res.json(post));
+      })
+      .catch(() => res.status(404).json({ postNotFound: "No post found" }));
   }
 );
 
