@@ -107,9 +107,43 @@ router.post(
 
           // Add user id to likes array
           post.likes.unshift({ user: req.user.id });
+
+          // Save
           post.save().then(post => res.json(post));
         })
-        .catch(err => res.status(400).json(err));
+        .catch(err => res.status(404).json({ postNotFound: "No post found" }));
+    });
+  }
+);
+
+// @route  DELETE /api/posts/:id/likes
+// @desc   Create post
+// @access Private
+router.delete(
+  "/:id/likes",
+  passport.authenticate("jwt", { session: false }),
+  (req, res) => {
+    Profile.findOne({ user: req.user.id }).then(profile => {
+      Post.findById(req.params.id)
+        .then(post => {
+          if (!post.likes.find(like => like.user.toString() === req.user.id)) {
+            return res
+              .status(400)
+              .json({ notLiked: "You have not yet liked this post" });
+          }
+
+          // Get remove index
+          const removeIndex = post.likes
+            .map(like => like.user.toString())
+            .indexOf(req.user.id);
+
+          // Splice out of array
+          post.likes.splice(removeIndex, 1);
+
+          // Save
+          post.save().then(pos => res.json(post));
+        })
+        .catch(() => res.status(404).json({ postNotFound: "No post found" }));
     });
   }
 );
